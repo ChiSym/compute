@@ -8,6 +8,20 @@ source "$SCRIPTS_DIR/common.sh"
 # Default values
 ZONE="us-west1-a"
 
+# Function to get Project ID from Project Name
+get_project_id() {
+  local project_name="$1"
+  local project_id
+
+  project_id=$(gcloud projects list --filter="name=${project_name}" --format="value(projectId)")
+
+  if [[ -z "$project_id" ]]; then
+    error_exit "Failed to find project ID for project name: $project_name"
+  fi
+
+  echo "$project_id"
+}
+
 # Parse command-line arguments
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -19,8 +33,8 @@ while [[ $# -gt 0 ]]; do
       ZONE="$2"
       shift 2
       ;;
-    --project)
-      PROJECT="$2"
+    --project-name)
+      PROJECT_NAME="$2"
       shift 2
       ;;
     --machine-type)
@@ -37,15 +51,17 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Required parameters are set
-if [[ -z "${INSTANCE_NAME-}" || -z "${PROJECT-}" || -z "${MACHINE_TYPE-}" || -z "${ACCELERATOR-}" ]]; then
-  error_exit "Usage: $0 --instance-name <name> --project <project> --machine-type <type> --accelerator <type=count> [--zone <zone>]"
+# Ensure required parameters are set
+if [[ -z "${INSTANCE_NAME-}" || -z "${PROJECT_NAME-}" || -z "${MACHINE_TYPE-}" || -z "${ACCELERATOR-}" ]]; then
+  error_exit "Usage: $0 --instance-name <name> --project-name <project_name> --machine-type <type> --accelerator <type=count> [--zone <zone>]"
 fi
 
-# Authenticate GCP
+# Get Project ID from Project Name
+PROJECT_ID=$(get_project_id "$PROJECT_NAME")
+
 gcp-auth() {
   gcloud auth login \
-    --project="$PROJECT" \
+    --project="$PROJECT_ID" \
     --update-adc --force ||
     error_exit "Failed to authenticate gcloud."
 }
@@ -56,7 +72,7 @@ create-user-vm() {
   gcp-auth
 
   gcloud compute instances create "$INSTANCE_NAME" \
-    --project="$PROJECT" \
+    --project="$PROJECT_ID" \
     --zone="$ZONE" \
     --image-family="common-cu123-ubuntu-2204-py310" \
     --image-project="deeplearning-platform-release" \
@@ -69,9 +85,9 @@ create-user-vm() {
     --create-disk="name=$INSTANCE_NAME-data,size=2048GB,type=pd-balanced,auto-delete=no" ||
     error_exit "Failed to create GCP instance."
 
-  gcloud compute config-ssh --project "$PROJECT" || error_exit "Failed to configure SSH."
+  gcloud compute config-ssh --project "$PROJECT_ID" || error_exit "Failed to configure SSH."
 
-  info "Your VM $INSTANCE_NAME.$ZONE.$PROJECT is ready"
+  info "Your VM $INSTANCE_NAME.$ZONE.$PROJECT_ID is ready"
 }
 
 create-user-vm

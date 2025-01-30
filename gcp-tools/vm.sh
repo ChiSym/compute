@@ -81,8 +81,7 @@ create-user-vm() {
     --boot-disk-type=pd-standard \
     --machine-type="$MACHINE_TYPE" \
     --accelerator="type=$ACCELERATOR,count=1" \
-    --metadata="install-nvidia-driver=True" \
-    --create-disk="name=$INSTANCE_NAME-data,size=2048GB,type=pd-balanced,auto-delete=no" ||
+    --metadata="install-nvidia-driver=True" ||
     error_exit "Failed to create GCP instance."
 
   gcloud compute config-ssh --project "$PROJECT_ID" || error_exit "Failed to configure SSH."

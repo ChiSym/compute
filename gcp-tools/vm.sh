@@ -8,6 +8,19 @@ source "$SCRIPTS_DIR/common.sh"
 # Default values
 ZONE="us-west1-a"
 
+# Function to display usage
+usage() {
+  echo "Usage: $0 <action> [--instance-name <name>] [--project-name <project_name>] [--machine-type <type>] [--accelerator <type=count>] [--zone <zone>]"
+  echo "Actions:"
+  echo "  create  - Create a new VM (required: --project-name, --instance-name, --machine-type, --accelerator-type)"
+  echo "  start   - Start an existing VM (required: --project-name, --instance-name)"
+  echo "  stop    - Stop a running VM (required: --project-name, --instance-name)"
+  echo "  delete  - Delete a VM (required: --project-name, --instance-name)"
+  echo "  list    - List all VMs in the project (required: --project-name)"
+  echo "  help    - Show this help message"
+  exit 0
+}
+
 # Function to get Project ID from Project Name
 get_project_id() {
   local project_name="$1"
@@ -21,6 +34,33 @@ get_project_id() {
 
   echo "$project_id"
 }
+
+# Function to get Zone for an instance
+get_instance_zone() {
+  local instance_name="$1"
+  local project_id="$2"
+  local zone
+
+  zone=$(gcloud compute instances list --filter="name=${instance_name}" --project=${project_id} --format="value(zone)")
+
+  if [[ -z "$zone" ]]; then
+    error_exit "Failed to find zone for instance: $instance_name"
+  fi
+
+  echo "$zone"
+}
+
+# Ensure action is provided as the first argument
+if [[ $# -lt 1 ]]; then
+  usage
+fi
+
+ACTION="$1"
+shift
+
+if [[ "$ACTION" == "help" ]]; then
+  usage
+fi
 
 # Parse command-line arguments
 while [[ $# -gt 0 ]]; do
@@ -51,13 +91,17 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Ensure required parameters are set
-if [[ -z "${INSTANCE_NAME-}" || -z "${PROJECT_NAME-}" || -z "${MACHINE_TYPE-}" || -z "${ACCELERATOR-}" ]]; then
-  error_exit "Usage: $0 --instance-name <name> --project-name <project_name> --machine-type <type> --accelerator <type=count> [--zone <zone>]"
+# Ensure required parameters are set based on action
+if [[ "$ACTION" != "list" && (-z "${PROJECT_NAME-}" || -z "${INSTANCE_NAME-}") ]]; then
+  error_exit "Usage: $0 <action> --project-name <project_name> --instance-name <name>"
 fi
 
 # Get Project ID from Project Name
 PROJECT_ID=$(get_project_id "$PROJECT_NAME")
+
+if [[ -z "$ZONE" && "$ACTION" != "list" ]]; then
+  ZONE=$(get_instance_zone "$INSTANCE_NAME" "$PROJECT_ID")
+fi
 
 gcp-auth() {
   gcloud auth login \
@@ -89,4 +133,43 @@ create-user-vm() {
   info "Your VM $INSTANCE_NAME.$ZONE.$PROJECT_ID is ready"
 }
 
-create-user-vm
+start-vm() {
+  info "Starting VM $INSTANCE_NAME..."
+  gcloud compute instances start "$INSTANCE_NAME" --zone="$ZONE" --project="$PROJECT_ID" || error_exit "Failed to start VM."
+}
+
+stop-vm() {
+  info "Stopping VM $INSTANCE_NAME..."
+  gcloud compute instances stop "$INSTANCE_NAME" --zone="$ZONE" --project="$PROJECT_ID" || error_exit "Failed to stop VM."
+}
+
+delete-vm() {
+  info "Deleting VM $INSTANCE_NAME..."
+  gcloud compute instances delete "$INSTANCE_NAME" --zone="$ZONE" --project="$PROJECT_ID" --quiet || error_exit "Failed to delete VM."
+}
+
+list-vms() {
+  info "Listing VMs for project $PROJECT_ID..."
+  gcloud compute instances list --project "$PROJECT_ID"
+}
+
+case "$ACTION" in
+  create)
+    create-user-vm
+    ;;
+  start)
+    start-vm
+    ;;
+  stop)
+    stop-vm
+    ;;
+  delete)
+    delete-vm
+    ;;
+  list)
+    list-vms
+    ;;
+  *)
+    error_exit "Invalid action specified. Use <create|start|stop|delete|list|help> as the first argument."
+    ;;
+esac

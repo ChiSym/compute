@@ -12,12 +12,13 @@ ZONE="us-west1-a"
 usage() {
   echo "Usage: $0 <action> [--instance-name <name>] [--project-name <project_name>] [--machine-type <type>] [--accelerator <type=count>] [--zone <zone>]"
   echo "Actions:"
-  echo "  create  - Create a new VM"
+  echo "The create, start, stop, and delete actions require --project-name and --instance-name"
+  echo "  create  - Create a new VM using"
   echo "  start   - Start an existing VM"
   echo "  stop    - Stop a running VM"
   echo "  delete  - Delete a VM"
-  echo "  list    - List all VMs in the project"
-  echo "  --help  - Show this help message"
+  echo "  list    - List all VMs for supplied --project-name"
+  echo "  help  - Show this help message"
   exit 0
 }
 
@@ -74,7 +75,7 @@ fi
 ACTION="$1"
 shift
 
-if [[ "$ACTION" == "--help" ]]; then
+if [[ "$ACTION" == "help" ]]; then
   usage
 fi
 
@@ -179,6 +180,6 @@ case "$ACTION" in
     list-vms
     ;;
   *)
-    error_exit "Invalid action specified. Use <create|start|stop|delete|list|--help> as the first argument."
+    error_exit "Invalid action specified. Use <create|start|stop|delete|list|help> as the first argument."
     ;;
 esac

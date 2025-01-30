@@ -12,12 +12,12 @@ ZONE="us-west1-a"
 usage() {
   echo "Usage: $0 <action> [--instance-name <name>] [--project-name <project_name>] [--machine-type <type>] [--accelerator <type=count>] [--zone <zone>]"
   echo "Actions:"
-  echo "  create  - Create a new VM (required: --project-name, --instance-name, --machine-type, --accelerator-type)"
-  echo "  start   - Start an existing VM (required: --project-name, --instance-name)"
-  echo "  stop    - Stop a running VM (required: --project-name, --instance-name)"
-  echo "  delete  - Delete a VM (required: --project-name, --instance-name)"
-  echo "  list    - List all VMs in the project (required: --project-name)"
-  echo "  help    - Show this help message"
+  echo "  create  - Create a new VM"
+  echo "  start   - Start an existing VM"
+  echo "  stop    - Stop a running VM"
+  echo "  delete  - Delete a VM"
+  echo "  list    - List all VMs in the project"
+  echo "  --help  - Show this help message"
   exit 0
 }
 
@@ -50,6 +50,22 @@ get_instance_zone() {
   echo "$zone"
 }
 
+# Function to authenticate only if needed
+gcp-auth() {
+  local current_project
+  current_project=$(gcloud config get-value project 2>/dev/null || echo "")
+  
+  if [[ "$current_project" != "$PROJECT_ID" ]]; then
+    info "Authenticating for project $PROJECT_ID..."
+    gcloud auth login \
+      --project="$PROJECT_ID" \
+      --update-adc --force ||
+      error_exit "Failed to authenticate gcloud."
+  else
+    info "Already authenticated for project $PROJECT_ID. Skipping authentication."
+  fi
+}
+
 # Ensure action is provided as the first argument
 if [[ $# -lt 1 ]]; then
   usage
@@ -58,7 +74,7 @@ fi
 ACTION="$1"
 shift
 
-if [[ "$ACTION" == "help" ]]; then
+if [[ "$ACTION" == "--help" ]]; then
   usage
 fi
 
@@ -102,13 +118,6 @@ PROJECT_ID=$(get_project_id "$PROJECT_NAME")
 if [[ -z "$ZONE" && "$ACTION" != "list" ]]; then
   ZONE=$(get_instance_zone "$INSTANCE_NAME" "$PROJECT_ID")
 fi
-
-gcp-auth() {
-  gcloud auth login \
-    --project="$PROJECT_ID" \
-    --update-adc --force ||
-    error_exit "Failed to authenticate gcloud."
-}
 
 create-user-vm() {
   info "Bootstrapping new $INSTANCE_NAME..."
@@ -170,6 +179,6 @@ case "$ACTION" in
     list-vms
     ;;
   *)
-    error_exit "Invalid action specified. Use <create|start|stop|delete|list|help> as the first argument."
+    error_exit "Invalid action specified. Use <create|start|stop|delete|list|--help> as the first argument."
     ;;
 esac

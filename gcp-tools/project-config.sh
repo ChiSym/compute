@@ -71,4 +71,7 @@ gcloud compute firewall-rules create default-allow-ssh \
     --allow=tcp:22 \
     --source-ranges=0.0.0.0/0
 
+info "Enabling Google Cloud Monitoring"
+gcloud services enable monitoring.googleapis.com
+
 info "Setup completed successfully"

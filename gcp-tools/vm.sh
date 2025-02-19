@@ -144,7 +144,7 @@ create-user-vm() {
 }
 
 start-vm() {
-  info "Starting VM $INSTANCE_NAME..."
+  info "Starting VM $INSTANCE_NAME and configuring SSH..."
   gcloud compute instances start "$INSTANCE_NAME" --zone="$ZONE" --project="$PROJECT_ID" || error_exit "Failed to start VM."
   gcloud compute config-ssh --project "$PROJECT_ID" || error_exit "Failed to configure SSH."
 }

@@ -60,7 +60,7 @@ gcp-auth() {
     info "Authenticating for project $PROJECT_ID..."
     gcloud auth login \
       --project="$PROJECT_ID" \
-      --update-adc --force ||
+      --update-adc ||
       error_exit "Failed to authenticate gcloud."
   else
     info "Already authenticated for project $PROJECT_ID. Skipping authentication."
@@ -146,6 +146,7 @@ create-user-vm() {
 start-vm() {
   info "Starting VM $INSTANCE_NAME..."
   gcloud compute instances start "$INSTANCE_NAME" --zone="$ZONE" --project="$PROJECT_ID" || error_exit "Failed to start VM."
+  gcloud compute config-ssh --project "$PROJECT_ID" || error_exit "Failed to configure SSH."
 }
 
 stop-vm() {
